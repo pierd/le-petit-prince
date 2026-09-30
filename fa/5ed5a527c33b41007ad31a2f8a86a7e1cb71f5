@@ -1,0 +1,19 @@
+.gitignore
+  s_c121233cec6107::t_975b738254eaec 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fa5ed5a527c33b41007ad31a2f8a86a7e1cb71f5",
+  "prompts": {},
+  "sessions": {
+    "s_c121233cec6107": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f0d6b467affeV6VtHofLby1N07",
+        "model": "big-pickle"
+      },
+      "human_author": "Kuba Jaroszewski <jakub.jaroszewski@gmail.com>"
+    }
+  }
+}
