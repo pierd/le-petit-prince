@@ -2,7 +2,7 @@
 import re
 import zlib
 
-A4H = 841.89
+A4H = 841.89          # default page height if a page has no /MediaBox
 
 
 def load(path):
@@ -69,6 +69,16 @@ def page_order(objs):
     return uniq
 
 
+def page_size(objs, pnum):
+    """-> (width, height) of a page from its /MediaBox, in pt."""
+    body = objs.get(pnum, (b"", None))[0]
+    m = re.search(rb"/MediaBox\s*\[\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", body)
+    if not m:
+        return 595.28, A4H
+    x0, y0, x1, y1 = (float(v) for v in m.groups())
+    return x1 - x0, y1 - y0
+
+
 def content_of(objs, pnum):
     body = objs.get(pnum, (b"", None))[0]
     m = re.search(rb"/Contents\s+(\d+)\s+0\s+R", body)
@@ -113,7 +123,7 @@ def _decode(b):
     return "".join(LIGATURES.get(ord(c), c) for c in s)
 
 
-def lines_from(content):
+def lines_from(content, page_h=A4H):
     """-> [(x, height_from_top, text)]"""
     out, cur, line = [], [0.0, 0.0], []
     ctm, stack = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0), []
@@ -126,7 +136,7 @@ def lines_from(content):
         txt = "".join(line)
         if txt.strip():
             x, y = dev()
-            out.append((x, A4H - y, txt))
+            out.append((x, page_h - y, txt))
         line.clear()
 
     pat = (rb"([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+cm"
@@ -169,7 +179,7 @@ def lines_from(content):
     return out
 
 
-def images_from(content):
+def images_from(content, page_h=A4H):
     """-> [(x, y_from_top, w, h)] for every XObject drawn, in page coordinates.
 
     Useful for confirming the plates actually land inside the text block: a
@@ -191,6 +201,6 @@ def images_from(content):
             a, b, c, d, e, f = ctm
             # An image XObject paints a unit square transformed by the CTM.
             # These books contain no form XObjects, so every Do is one plate.
-            out.append((min(e, e + a + c), A4H - max(f, f + b + d),
+            out.append((min(e, e + a + c), page_h - max(f, f + b + d),
                         abs(a) + abs(c), abs(b) + abs(d)))
     return out

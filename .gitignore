@@ -9,8 +9,6 @@ __pycache__/
 content/.source.html
 
 # Generated book files
-le-petit-prince.tex
-le-petit-prince.pdf
 bilingual-template.pdf
 
 # LaTeX build artifacts

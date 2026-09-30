@@ -1,8 +1,10 @@
 %% ---------------------------------------------------------------------------
 %% book-template.tex
 %%
-%% Bilingual edition of Le Petit Prince: the French on the left, a literal
-%% Spanish translation on the right, paragraph N always facing paragraph N.
+%% Bilingual A5 edition of Le Petit Prince. Every opening is a pair of facing
+%% pages: the French original on the left (even) page, a literal Spanish
+%% translation on the right (odd) page, paragraph N always level with
+%% paragraph N.
 %%
 %% THIS FILE IS A TEMPLATE - do not type your text here. Run:
 %%
@@ -14,13 +16,18 @@
 %% regenerated from content/fr.txt + content/es-part-*.txt, so never edit it
 %% by hand.
 %%
-%% HOW THE ALIGNMENT WORKS
+%% HOW THE LAYOUT WORKS
+%%   \begin{paracol}[1]*{2} is paracol's "parallel paging" mode: column 0 is
+%%   typeset on the left page and column 1 on the facing right page, and the
+%%   two pages carry their own consecutive page numbers (2|3, 4|5, ...). A page
+%%   break in one language forces the same page break in the other.
+%%
 %%   \pair typesets both sides into boxes, measures them, and pads the shorter
 %%   one with invisible space, so each paragraph occupies exactly the same
-%%   height in both columns. \switchcolumn is used only to move between them.
-%%   paracol's own \switchcolumn does NOT do this and lets the texts drift.
+%%   height on both pages. \switchcolumn is used only to move between them;
+%%   on its own it lets the two texts drift.
 %% ---------------------------------------------------------------------------
-\documentclass[12pt,a4paper,twoside,openright]{book}
+\documentclass[11pt,a5paper,twoside]{book}
 
 %% --- the two languages -------------------------------------------------------
 \newcommand{\origlang}{french}
@@ -32,38 +39,34 @@
 \usepackage[\origlang,\translang]{babel}
 
 %% --- page geometry -----------------------------------------------------------
-%% "inner"/"outer" (rather than left/right) puts the wide margin on the binding
-%% side whichever page we are on.
-\usepackage[inner=28mm,outer=20mm,top=22mm,bottom=24mm]{geometry}
+%% "inner"/"outer" puts the wider margin on the binding (fold) side whichever
+%% page we are on. The text block is the same on every page, so facing pages
+%% mirror each other exactly.
+\usepackage[a5paper,inner=18mm,outer=15mm,top=17mm,bottom=19mm,
+            headsep=5mm,footskip=9mm]{geometry}
 
 %% --- typography --------------------------------------------------------------
 \usepackage{lmodern}
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{paracol}
-\setlength{\emergencystretch}{2em}       % avoid overflow in narrow columns
-
-\columnratio{0.5,0.5}
-\setlength{\columnsep}{9mm}
-\setlength{\columnseprule}{0.3pt}   % hairline between the two texts
+\setlength{\emergencystretch}{2em}
 \setlength{\parindent}{1em}
 \setlength{\parskip}{0pt}
 
 %% --- running heads -----------------------------------------------------------
-%% In fancyhdr, L/R = physical side of the page, O/E = odd/even page. The outer
-%% edge of a recto is on the RIGHT, of a verso on the LEFT, so these must be
-%% [RO] and [LE], not [LO]/[RE].
+%% In fancyhdr, L/R = physical side of the page, O/E = odd/even page. Even
+%% (left) pages carry the French, odd (right) pages the Spanish; heads and
+%% folios sit on the outer edge.
 \usepackage{fancyhdr}
 \pagestyle{fancy}
-\setlength{\headheight}{14.5pt}
+\setlength{\headheight}{13.6pt}
 \fancyhf{}
-\fancyhead[RO]{\small\itshape Le Petit Prince}
-\fancyhead[LE]{\small\itshape El Principito}
+\fancyhead[LE]{\small\itshape Le Petit Prince}
+\fancyhead[RO]{\small\itshape El Principito}
 \fancyfoot[LE,RO]{\small\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
-\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}%
-  \renewcommand{\headrulewidth}{0pt}}
 
 %% =========================== THE ALIGNMENT ENGINE ==========================
 \newsavebox{\pairA}
@@ -83,14 +86,12 @@
   \nointerlineskip\vskip\pairgap\nointerlineskip
 }
 
-%% --- one paragraph: original first, translation second ----------------------
-\newcommand{\pair}[2]{%
-  \par
-  \setbox\pairA=\vtop{\hsize=\linewidth\selectlanguage{\origlang}#1\relax}%
-  \setbox\pairB=\vtop{\hsize=\linewidth\selectlanguage{\translang}#2\relax}%
+%% Measure \pairA and \pairB, then place them level on the two pages.
+\newcommand{\placepair}[1][0pt]{%
   \pairht=\ht\pairA \advance\pairht by \dp\pairA
   \dimen0=\ht\pairB \advance\dimen0 by \dp\pairB
   \ifdim\dimen0>\pairht \pairht=\dimen0 \fi
+  \advance\pairht by #1\relax
   \ifdim\pairht>\textheight
     \PackageWarning{bilingual}{A paragraph is \the\pairht\space tall but the text
       height is \textheight. It cannot be split, so it will overflow the page.}%
@@ -100,48 +101,56 @@
   \pairplace{\pairB}%
   \switchcolumn}
 
+%% Pin the first baseline of a box at capital height below its top. Without
+%% this the first line sits as high as its tallest glyph allows, so "CAPÍTULO"
+%% or "¿Por qué" would start a hair lower than the facing line. The empty
+%% \hbox gives TeX a zero-depth line to measure \baselineskip from; accents
+%% simply reach up into the space between paragraphs.
+\newcommand{\firstline}{\hbox{}%
+  \kern-\dimexpr\baselineskip-\fontcharht\font`A\relax}
+
+%% --- one paragraph: original first, translation second ----------------------
+\newcommand{\pair}[2]{%
+  \par
+  \setbox\pairA=\vtop{\hsize=\linewidth\firstline
+    \selectlanguage{\origlang}#1\relax}%
+  \setbox\pairB=\vtop{\hsize=\linewidth\firstline
+    \selectlanguage{\translang}#2\relax}%
+  \placepair}
+
 %% --- one illustration -------------------------------------------------------
-%% \switchcolumn* synchronizes both streams, inserts its optional argument as
-%% full-width material spanning the columns, then changes column. The final
-%% unstarred switch returns to the French column for the next \pair.
+%% The plate is printed on both facing pages, at the same height, so each page
+%% reads as a complete page on its own and the texts below stay level.
+\newcommand{\plateimage}[3]{%
+  \vspace*{0.35\baselineskip}%
+  {\centering
+   \includegraphics[width=#2,height=#3,keepaspectratio]{images/#1}\par}%
+  \vspace{0.35\baselineskip}}
 \newcommand{\plate}[3]{%
-  \switchcolumn*[{%
-    \par\vspace{0.35\baselineskip}%
-    \centering
-    \includegraphics[width=#2,height=#3,keepaspectratio]{images/#1}%
-    \par\vspace{0.35\baselineskip}%
-  }]%
-  \switchcolumn}
+  \par
+  \setbox\pairA=\vtop{\hsize=\linewidth\plateimage{#1}{#2}{#3}}%
+  \setbox\pairB=\vtop{\hsize=\linewidth\plateimage{#1}{#2}{#3}}%
+  \placepair}
 
 %% --- a chapter title --------------------------------------------------------
-%% \section would try to start a page of its own, so the heading is done by
-%% hand. Each side is measured first: a chapter must start both columns at the
-%% same height even when one title wraps to two lines and the other does not.
+%% Each side is measured first: a chapter must start both pages at the same
+%% height even when one title wraps to two lines and the other does not.
 \newcommand{\chapterpair}[2]{%
   \par
   \setbox\pairA=\vtop{\hsize=\linewidth\selectlanguage{\origlang}%
-    \centering\Large\bfseries #1\par}%
+    \centering\Large\bfseries\firstline #1\par}%
   \setbox\pairB=\vtop{\hsize=\linewidth\selectlanguage{\translang}%
-    \centering\Large\bfseries #2\par}%
-  \pairht=\ht\pairA \advance\pairht by \dp\pairA
-  \dimen0=\ht\pairB \advance\dimen0 by \dp\pairB
-  \ifdim\dimen0>\pairht \pairht=\dimen0 \fi
-  \advance\pairht by 1.2\baselineskip
-  \pairplace{\pairA}%
-  \switchcolumn
-  \pairplace{\pairB}%
-  \switchcolumn}
+    \centering\Large\bfseries\firstline #2\par}%
+  \placepair[1.2\baselineskip]}
 
-%% Start a fresh spread with both columns at the top.
+%% Start a fresh opening with both pages at the top.
 %% paracol redefines \clearpage to flush *every* column at once, so both texts
-%% land on the new page together. (\newpage would only break the current
-%% column and let the other drift; ending and restarting the environment
-%% instead raises "paracol cannot be nested".)
+%% move to the next pair of facing pages together.
 \newcommand{\newsection}{\par\clearpage}
 
 \begin{document}
 
-%% --- title page -------------------------------------------------------------
+%% --- title page (page 1, a right-hand page) ---------------------------------
 \thispagestyle{empty}
 \vspace*{\fill}
 \begin{center}
@@ -149,7 +158,7 @@
   \vspace{1.2\baselineskip}
   {\Large Antoine de Saint-Exupéry\par}
   \vspace{3\baselineskip}
-  \rule{0.4\linewidth}{0.4pt}
+  \rule{0.4\linewidth}{0.4pt}\par
   \vspace{1.2\baselineskip}
   {\LARGE El Principito\par}
   \vspace{1.2\baselineskip}
@@ -158,10 +167,25 @@
 \vspace*{\fill}
 \newpage
 
-\begin{paracol}{2}
+%% The text must start on a left-hand (even) page so that French is always on
+%% the left of an opening. After the one-page title we are on page 2.
+\ifodd\value{page}\mbox{}\thispagestyle{empty}\newpage\fi
+
+\begin{paracol}[1]*{2}
 
 %%BODY%%
 
 \end{paracol}
+
+%% A folded booklet needs a multiple of four pages. Pad with blank pages here
+%% so the imposition is predictable instead of left to the printer driver.
+\clearpage
+\newcount\padpages
+\loop
+  \padpages=\numexpr\value{page}-1\relax   % pages output so far
+  \divide\padpages by 4 \multiply\padpages by 4
+\ifnum\padpages<\numexpr\value{page}-1\relax
+  \mbox{}\thispagestyle{empty}\newpage
+\repeat
 
 \end{document}

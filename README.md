@@ -1,9 +1,10 @@
 # Le Petit Prince: French / Spanish parallel edition
 
-The French original is on the left and a deliberately literal Spanish
-translation is on the right. Matching paragraphs begin at the same height,
-including across page breaks. The 47 original illustrations are centered
-across the full text block rather than placed inside either language column.
+An A5 booklet. Every opening is a pair of facing pages: the French original
+on the left (even) page and a deliberately literal Spanish translation on the
+right (odd) page. Matching paragraphs begin at the same height on both pages,
+and a page break in one language is a page break in the other. Each of the 47
+original illustrations is printed on both facing pages, at the same height.
 
 The generated book contains 27 chapters, the dedication, and 739 paired
 paragraphs. It contains no hosting-site headers, footers, logos, licence text,
@@ -17,12 +18,13 @@ or other branding.
 
 This strictly refuses to build if any Spanish paragraph key is missing. It
 generates `le-petit-prince.tex`, runs `pdflatex` twice, and writes
-`le-petit-prince.pdf`.
+`le-petit-prince.pdf` (A5 pages, padded with blank pages to a multiple of
+four).
 
 macOS TeX executables are under `/Library/TeX/texbin`; the script adds that
 directory to `PATH` automatically.
 
-For a temporary French-in-both-columns draft despite missing translations:
+For a temporary draft with French on both pages despite missing translations:
 
 ```sh
 ./build-book.sh --draft
@@ -34,15 +36,27 @@ To regenerate only the LaTeX source:
 ./build-book.sh --tex-only
 ```
 
+## Print
+
+Page 1 is the title (a right-hand page); the text starts on page 2, so the
+French is always on the left of an opening. To make a folded booklet from A4
+sheets, print `le-petit-prince.pdf` double-sided using a booklet option (e.g.
+Acrobat Reader: *Page Sizing & Handling > Booklet*, both sides, binding left;
+or your printer driver's booklet mode). At 160 pages that is 40 A4 sheets,
+which is thick for a single fold; Acrobat's *Sheets from ... to* setting can
+split it into several signatures.
+
 ## Verify
 
 ```sh
 python3 tools/check_alignment.py
 ```
 
-The checker reads coordinates directly from the PDF. It verifies all 739
-paragraph pairs begin at matching heights and all 47 plates are centered and
-inside the page.
+The checker reads coordinates directly from the PDF. For every opening it
+verifies that the French page and the facing Spanish page have the same
+number of paragraphs, that all 739 paragraph pairs and the chapter titles
+begin at matching heights, that each plate appears on both pages at the same
+height, and that the page count is a multiple of four.
 
 ## Files
 
@@ -51,7 +65,7 @@ inside the page.
 | `content/fr.txt` | Parsed French text and image positions |
 | `content/es-part-*.txt` | Literal Spanish translation, split by chapter range |
 | `images/` | Local copies of the 47 original illustrations |
-| `book-template.tex` | Typography, synchronized columns, full-width plates |
+| `book-template.tex` | A5 geometry, facing-page layout, plates |
 | `tools/fetch_source.py` | Fetches and parses the supplied HTML source |
 | `tools/makebook.py` | Validates keys and generates the complete LaTeX book |
 | `tools/check_alignment.py` | Verifies paragraph and plate coordinates in the PDF |
@@ -73,7 +87,14 @@ French key must have exactly one Spanish counterpart.
 
 ## Alignment
 
-`\pair` measures the French and Spanish paragraphs, uses the taller height,
-and pads the shorter side invisibly. This keeps each subsequent pair aligned;
-plain `paracol` column switching alone does not. `\switchcolumn*` synchronizes
-both streams before inserting each illustration across the full text width.
+`\begin{paracol}[1]*{2}` is paracol's parallel-paging mode: column 0 (French)
+goes on even pages and column 1 (Spanish) on the facing odd pages, with their
+page breaks synchronized. `\pair` measures the French and Spanish paragraphs,
+uses the taller height, and pads the shorter side invisibly. This keeps each
+subsequent pair aligned; plain `paracol` column switching alone does not.
+`\plate` is a `\pair` with the same illustration on both sides. `\firstline`
+pins each box's first baseline at a fixed depth so that accented capitals
+(`CAPÍTULO`, `¿`) do not push one side down.
+
+Paragraphs are never split across pages, so a page may end early when the
+next paragraph does not fit on it.

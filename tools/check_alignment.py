@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Check that the two columns of le-petit-prince.pdf stay in step.
+"""Check that the facing pages of le-petit-prince.pdf stay in step.
 
-The promise of this layout is that paragraph N of the French always faces
-paragraph N of the Spanish, on the same page and at the same height - and that
-this survives 27 chapter breaks and 47 plates.
+The promise of this layout is that every opening shows the French on the left
+(even) page and the Spanish on the right (odd) page, with paragraph N of the
+French starting at the same height as paragraph N of the Spanish - and that
+this survives 27 chapter breaks and 47 plates, each printed on both pages.
 
 Paragraph starts are identifiable in the PDF because every paragraph is
-indented by \\parindent while its continuation lines sit flush at the column
-edge. Column edges and the indent are found from the page's own geometry
-(the commonest x is the edge, the commonest small indent is \\parindent), so no
-hard-coded page numbers are involved. Centred headings and plate captions sit
-far to the right of the edge and are ignored on both sides alike.
+indented by \\parindent while its continuation lines sit flush at the text
+edge. The text edge of left and right pages and the indent are found from the
+book's own geometry (the commonest x is the edge, the commonest small offset
+from it is \\parindent), so no hard-coded page numbers are involved. Centred
+headings sit far from the edge and are ignored on both sides alike.
 
     python3 tools/check_alignment.py [--draft] [pdf]
 """
@@ -20,16 +21,18 @@ import sys
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pdftext import load, page_order, content_of, lines_from, images_from  # noqa: E402
+from pdftext import (load, page_order, page_size, content_of,  # noqa: E402
+                     lines_from, images_from)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARGS = [a for a in sys.argv[1:] if a != "--draft"]
 DRAFT = "--draft" in sys.argv
 PDF = ARGS[0] if ARGS else os.path.join(ROOT, "le-petit-prince.pdf")
 
-MID = 595.28 / 2      # A4 width / 2: the rule between the columns
-TOL = 3.0             # pt, slack for PDF coordinate rounding
+TOL = 1.0             # pt, slack for PDF coordinate rounding
 EDGE_TOL = 1.5        # pt, slack when bucketing x positions
+HEAD = 40.0           # pt from the top: running head, not body text
+FOOT = 45.0           # pt from the bottom: folio, not body text
 
 
 def norm(s):
@@ -38,90 +41,93 @@ def norm(s):
 
 def mode(vals, tol=EDGE_TOL):
     """commonest value, merging values within tol"""
+    counts = Counter(round(v, 1) for v in vals)
     best, best_n = None, 0
-    for v, _ in Counter(vals).most_common():
-        n = sum(c for u, c in Counter(vals).items() if abs(u - v) <= tol)
+    for v in counts:
+        n = sum(c for u, c in counts.items() if abs(u - v) <= tol)
         if n > best_n:
             best, best_n = v, n
     return best
 
 
-def columns(lines):
-    left = [(x, h, t) for x, h, t in lines if x < MID and norm(t)]
-    right = [(x, h, t) for x, h, t in lines if x >= MID and norm(t)]
-    return (sorted(left, key=lambda r: r[1]), sorted(right, key=lambda r: r[1]))
-
-
-def starts(col, edge, para):
-    """(height, text) of every indented line, i.e. every paragraph start."""
-    return [(h, t) for x, h, t in col
-            if 60 < h < 780 and abs((x - edge) - para) <= TOL]
-
-
 def main():
     objs = load(PDF)
-    pages = page_order(objs)
-    page_data = []
-    xs = {(side, parity): [] for side in (0, 1) for parity in (0, 1)}
-
-    # Learn fixed column edges globally. Per-page inference is ambiguous on a
-    # sparse page with equal numbers of continuation and paragraph-start lines.
-    for pno, pnum in enumerate(pages, 1):
+    pages = []
+    for pnum in page_order(objs):
+        w, h = page_size(objs, pnum)
         content = content_of(objs, pnum)
-        cols = columns(lines_from(content))
-        page_data.append((content, cols))
-        for side, col in enumerate(cols):
-            xs[(side, pno % 2)].extend(x for x, h, _ in col if 60 < h < 780)
+        body = [(x, y, t) for x, y, t in lines_from(content, h)
+                if HEAD < y < h - FOOT and norm(t)]
+        pages.append((w, h, content, sorted(body, key=lambda r: r[1])))
 
-    edges = {k: mode(v) for k, v in xs.items() if v}
-    indents = {0: [], 1: []}
-    for pno, (_, cols) in enumerate(page_data, 1):
-        for side, col in enumerate(cols):
-            edge = edges.get((side, pno % 2))
-            if edge is not None:
-                indents[side].extend(x - edge for x, h, _ in col
-                                     if 60 < h < 780 and 4 < x - edge < 30)
-    paras = {side: mode(vals) for side, vals in indents.items()}
+    # Learn the text edge of left (even) and right (odd) pages globally, then
+    # the paragraph indent relative to that edge.
+    edges = {par: mode([x for pno, (_, _, _, body) in enumerate(pages, 1)
+                        if pno % 2 == par for x, _, _ in body])
+             for par in (0, 1)}
+    indent = mode([x - edges[pno % 2] for pno, (_, _, _, body) in enumerate(pages, 1)
+                   for x, _, _ in body if 4 < x - edges[pno % 2] < 30])
 
-    problems, offpage, npairs, pages_ok = [], [], 0, 0
-    plates = 0
+    def starts(pno):
+        edge, body = edges[pno % 2], pages[pno - 1][3]
+        return [(y, t) for x, y, t in body if abs((x - edge) - indent) <= TOL]
 
-    for pno, (content, (left, right)) in enumerate(page_data, 1):
-        if pno == 1:                       # title page is single-column
-            continue
+    problems, offpage = [], []
+    npairs = nspreads = plates = 0
 
-        for x, y, w, h in images_from(content):
+    for pno, (w, h, content, _) in enumerate(pages, 1):
+        for x, y, iw, ih in images_from(content, h):
             plates += 1
-            if y < 20 or y + h > 830 or w < 5 or h < 5:
-                offpage.append((pno, x, y, w, h))
+            if x < 0 or y < 0 or x + iw > w or y + ih > h or iw < 5 or ih < 5:
+                offpage.append((pno, x, y, iw, ih))
 
-        if not left or not right:
+    # Openings are (2,3), (4,5), ...: French left, Spanish right.
+    for left in range(2, len(pages) + 1, 2):
+        right = left + 1
+        lbody = pages[left - 1][3]
+        rbody = pages[right - 1][3] if right <= len(pages) else []
+        if not lbody and not rbody:
+            continue                      # blank padding pages
+        nspreads += 1
+        if bool(lbody) != bool(rbody):
+            problems.append((left, "one page of the opening is empty"))
             continue
-        fs = starts(left, edges[(0, pno % 2)], paras[0])
-        es = starts(right, edges[(1, pno % 2)], paras[1])
-        if not fs and not es:
-            continue
-        pages_ok += 1
 
+        limg = [round(y) for _, y, _, _ in images_from(pages[left - 1][2], pages[left - 1][1])]
+        rimg = [round(y) for _, y, _, _ in images_from(pages[right - 1][2], pages[right - 1][1])]
+        if len(limg) != len(rimg) or any(abs(a - b) > TOL for a, b in zip(limg, rimg)):
+            problems.append((left, f"plates differ: left at {limg}, right at {rimg}"))
+
+        fs, es = starts(left), starts(right)
         if len(fs) != len(es):
-            problems.append((pno, f"{len(fs)} French vs {len(es)} Spanish "
-                                  f"paragraph starts (first: "
-                                  f"{fs[0][1][:24]!r} / {es[0][1][:24]!r})"
-                                  if fs and es else "one column found no paragraph"))
+            problems.append((left, f"{len(fs)} French vs {len(es)} Spanish "
+                                   f"paragraph starts"
+                                   + (f" (first: {fs[0][1][:24]!r} / {es[0][1][:24]!r})"
+                                      if fs and es else "")))
             continue
         for (hf, tf), (he, te) in zip(fs, es):
             npairs += 1
             if abs(hf - he) > TOL:
-                problems.append((pno, f"heights differ by {hf - he:+.1f}pt: "
-                                      f"{tf[:26]!r} / {te[:26]!r}"))
-            elif not DRAFT and norm(tf) and norm(tf) == norm(te) and len(norm(tf)) > 12:
-                problems.append((pno, f"untranslated: {tf[:26]!r}"))
+                problems.append((left, f"heights differ by {hf - he:+.1f}pt: "
+                                       f"{tf[:26]!r} / {te[:26]!r}"))
+            elif not DRAFT and len(norm(tf)) > 12 and norm(tf) == norm(te):
+                problems.append((left, f"untranslated: {tf[:26]!r}"))
 
-    print(f"pages checked: {pages_ok}   paragraph pairs: {npairs}   plates: {plates}")
+        # Chapter titles are centred, so they are not paragraph starts; check
+        # the first body line of each page too.
+        if abs(lbody[0][1] - rbody[0][1]) > TOL:
+            problems.append((left, f"first lines differ by "
+                                   f"{lbody[0][1] - rbody[0][1]:+.1f}pt: "
+                                   f"{lbody[0][2][:26]!r} / {rbody[0][2][:26]!r}"))
+
+    print(f"pages: {len(pages)}   openings checked: {nspreads}   "
+          f"paragraph pairs: {npairs}   plates drawn: {plates}")
+    if len(pages) % 4:
+        problems.append((len(pages), f"{len(pages)} pages is not a multiple of 4"))
     if offpage:
-        print(f"\n{len(offpage)} plate(s) drawn outside the text area:")
-        for pno, x, y, w, h in offpage[:8]:
-            print(f"  p{pno:3d}: x={x:.0f} y={y:.0f} {w:.0f}x{h:.0f}")
+        print(f"\n{len(offpage)} plate(s) drawn outside the page:")
+        for pno, x, y, iw, ih in offpage[:8]:
+            print(f"  p{pno:3d}: x={x:.0f} y={y:.0f} {iw:.0f}x{ih:.0f}")
     if problems:
         print(f"\n{len(problems)} problem(s):")
         for pno, msg in problems[:25]:
@@ -129,9 +135,10 @@ def main():
         if len(problems) > 25:
             print(f"  ... and {len(problems) - 25} more")
         return 1
-    print("OK: every paragraph faces its counterpart at the same height"
-          + (f", and all {plates} plates sit inside the text area"
-             if not offpage else ""))
+    if offpage:
+        return 1
+    print("OK: French on every left page, Spanish facing it, every paragraph "
+          "and plate level with its counterpart")
     return 0
 
 

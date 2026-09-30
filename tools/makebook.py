@@ -11,9 +11,10 @@ Reads:
 Writes:
     le-petit-prince.tex
 
-Paragraph N of French always faces paragraph N of Spanish, because both sides
-are read from the same key. Illustrations are inserted once, centered across
-the full text width where they occur in the source; both columns resume below.
+Paragraph N of French (left, even page) always faces paragraph N of Spanish
+(right, odd page), because both sides are read from the same key.
+Illustrations are printed on both facing pages, at the same height, where they
+occur in the source; both texts resume below.
 
 Without --draft the build stops if any paragraph has no Spanish yet, which is
 what keeps a half-finished translation from silently shipping the French twice.
@@ -29,9 +30,9 @@ ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII
          "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI", "XXII",
          "XXIII", "XXIV", "XXV", "XXVI", "XXVII"]
 
-TEXTPT_W = 459.0       # full text width, in pt
-TEXTPT = 690.0         # text height, in pt
-MAXHFRAC = 0.42        # tallest a plate may be
+TEXTPT_W = 327.0       # A5 text width (148mm - 18mm - 15mm), in pt
+TEXTPT = 495.0         # A5 text height (210mm - 17mm - 19mm), in pt
+MAXHFRAC = 0.5         # tallest a plate may be
 
 
 def read(path):
