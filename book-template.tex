@@ -1,0 +1,167 @@
+%% ---------------------------------------------------------------------------
+%% book-template.tex
+%%
+%% Bilingual edition of Le Petit Prince: the French on the left, a literal
+%% Spanish translation on the right, paragraph N always facing paragraph N.
+%%
+%% THIS FILE IS A TEMPLATE - do not type your text here. Run:
+%%
+%%     python3 tools/fetch_source.py     # download + parse the French, images
+%%     python3 tools/makebook.py        # generate le-petit-prince.tex
+%%     ./build-book.sh                  # compile it to PDF
+%%
+%% The generated le-petit-prince.tex is where your text lives; it is
+%% regenerated from content/fr.txt + content/es-part-*.txt, so never edit it
+%% by hand.
+%%
+%% HOW THE ALIGNMENT WORKS
+%%   \pair typesets both sides into boxes, measures them, and pads the shorter
+%%   one with invisible space, so each paragraph occupies exactly the same
+%%   height in both columns. \switchcolumn is used only to move between them.
+%%   paracol's own \switchcolumn does NOT do this and lets the texts drift.
+%% ---------------------------------------------------------------------------
+\documentclass[12pt,a4paper,twoside,openright]{book}
+
+%% --- the two languages -------------------------------------------------------
+\newcommand{\origlang}{french}
+\newcommand{\translang}{spanish}
+
+%% --- encoding, hyphenation ----------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[\origlang,\translang]{babel}
+
+%% --- page geometry -----------------------------------------------------------
+%% "inner"/"outer" (rather than left/right) puts the wide margin on the binding
+%% side whichever page we are on.
+\usepackage[inner=28mm,outer=20mm,top=22mm,bottom=24mm]{geometry}
+
+%% --- typography --------------------------------------------------------------
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{paracol}
+\setlength{\emergencystretch}{2em}       % avoid overflow in narrow columns
+
+\columnratio{0.5,0.5}
+\setlength{\columnsep}{9mm}
+\setlength{\columnseprule}{0.3pt}   % hairline between the two texts
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+
+%% --- running heads -----------------------------------------------------------
+%% In fancyhdr, L/R = physical side of the page, O/E = odd/even page. The outer
+%% edge of a recto is on the RIGHT, of a verso on the LEFT, so these must be
+%% [RO] and [LE], not [LO]/[RE].
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+\fancyhead[RO]{\small\itshape Le Petit Prince}
+\fancyhead[LE]{\small\itshape El Principito}
+\fancyfoot[LE,RO]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}%
+  \renewcommand{\headrulewidth}{0pt}}
+
+%% =========================== THE ALIGNMENT ENGINE ==========================
+\newsavebox{\pairA}
+\newsavebox{\pairB}
+\newlength{\pairht}
+\newlength{\pairgap}
+
+%% Space between paragraphs. Because \nointerlineskip is used, this - not
+%% \baselineskip - is what separates one paragraph from the next. ~0.35\baselineskip
+%% is the usual book spacing; it can only be computed once \baselineskip exists.
+\AtBeginDocument{\setlength{\pairgap}{0.35\baselineskip}}
+
+%% Put one measured box into the current column, stretched to \pairht.
+\newcommand{\pairplace}[1]{%
+  \par\nointerlineskip
+  \noindent\vbox to\pairht{\unvbox#1\vfil}\par
+  \nointerlineskip\vskip\pairgap\nointerlineskip
+}
+
+%% --- one paragraph: original first, translation second ----------------------
+\newcommand{\pair}[2]{%
+  \par
+  \setbox\pairA=\vtop{\hsize=\linewidth\selectlanguage{\origlang}#1\relax}%
+  \setbox\pairB=\vtop{\hsize=\linewidth\selectlanguage{\translang}#2\relax}%
+  \pairht=\ht\pairA \advance\pairht by \dp\pairA
+  \dimen0=\ht\pairB \advance\dimen0 by \dp\pairB
+  \ifdim\dimen0>\pairht \pairht=\dimen0 \fi
+  \ifdim\pairht>\textheight
+    \PackageWarning{bilingual}{A paragraph is \the\pairht\space tall but the text
+      height is \textheight. It cannot be split, so it will overflow the page.}%
+  \fi
+  \pairplace{\pairA}%
+  \switchcolumn
+  \pairplace{\pairB}%
+  \switchcolumn}
+
+%% --- one illustration -------------------------------------------------------
+%% \switchcolumn* synchronizes both streams, inserts its optional argument as
+%% full-width material spanning the columns, then changes column. The final
+%% unstarred switch returns to the French column for the next \pair.
+\newcommand{\plate}[3]{%
+  \switchcolumn*[{%
+    \par\vspace{0.35\baselineskip}%
+    \centering
+    \includegraphics[width=#2,height=#3,keepaspectratio]{images/#1}%
+    \par\vspace{0.35\baselineskip}%
+  }]%
+  \switchcolumn}
+
+%% --- a chapter title --------------------------------------------------------
+%% \section would try to start a page of its own, so the heading is done by
+%% hand. Each side is measured first: a chapter must start both columns at the
+%% same height even when one title wraps to two lines and the other does not.
+\newcommand{\chapterpair}[2]{%
+  \par
+  \setbox\pairA=\vtop{\hsize=\linewidth\selectlanguage{\origlang}%
+    \centering\Large\bfseries #1\par}%
+  \setbox\pairB=\vtop{\hsize=\linewidth\selectlanguage{\translang}%
+    \centering\Large\bfseries #2\par}%
+  \pairht=\ht\pairA \advance\pairht by \dp\pairA
+  \dimen0=\ht\pairB \advance\dimen0 by \dp\pairB
+  \ifdim\dimen0>\pairht \pairht=\dimen0 \fi
+  \advance\pairht by 1.2\baselineskip
+  \pairplace{\pairA}%
+  \switchcolumn
+  \pairplace{\pairB}%
+  \switchcolumn}
+
+%% Start a fresh spread with both columns at the top.
+%% paracol redefines \clearpage to flush *every* column at once, so both texts
+%% land on the new page together. (\newpage would only break the current
+%% column and let the other drift; ending and restarting the environment
+%% instead raises "paracol cannot be nested".)
+\newcommand{\newsection}{\par\clearpage}
+
+\begin{document}
+
+%% --- title page -------------------------------------------------------------
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}
+  {\Huge\itshape Le Petit Prince\par}
+  \vspace{1.2\baselineskip}
+  {\Large Antoine de Saint-Exupéry\par}
+  \vspace{3\baselineskip}
+  \rule{0.4\linewidth}{0.4pt}
+  \vspace{1.2\baselineskip}
+  {\LARGE El Principito\par}
+  \vspace{1.2\baselineskip}
+  {\large Traducción literal del original francés\par}
+\end{center}
+\vspace*{\fill}
+\newpage
+
+\begin{paracol}{2}
+
+%%BODY%%
+
+\end{paracol}
+
+\end{document}

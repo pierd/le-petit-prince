@@ -1,0 +1,288 @@
+%% ---------------------------------------------------------------------------
+%% bilingual-template.tex
+%%
+%% A "parallel text" edition: the original on the left, the translation on the
+%% right, with paragraph N always facing paragraph N - across page breaks too.
+%%
+%% BUILD:  ./build.sh      (or: pdflatex bilingual-template.tex, twice)
+%%
+%% HOW TO WRITE YOUR OWN TEXT
+%%   Everything you type lives inside \begin{paracol}{2} ... \end{paracol}.
+%%   One paragraph = one \pair command:
+%%
+%%       \pair{Original paragraph}{Translated paragraph}
+%%
+%%   First argument  -> left column,  typeset in ORIGLANG
+%%   Second argument -> right column, typeset in TRANSLANG
+%%
+%%   To switch languages, edit \origlang and \translang near the top of this
+%%   file. Braces may span several lines, so feel free to wrap long paragraphs.
+%%
+%% HOW THE ALIGNMENT WORKS (this is the whole trick)
+%%   \pair typesets each side into a box, works out which one is TALLER, and
+%%   pads the shorter one with invisible space so that both boxes come out at
+%%   exactly the same height. Both columns therefore advance by an identical
+%%   amount after every paragraph, which is what keeps paragraph N facing
+%%   paragraph N - and what makes the page break fall in the same place in
+%%   both languages.
+%%
+%%   Note: paracol's own \switchcolumn does NOT do this. It alternates columns
+%%   but lets the two texts drift apart by a line whenever a translation runs
+%%   longer, so the lockstep is done here instead. \switchcolumn is used purely
+%%   to move between the columns.
+%%
+%%   Consequence: a paragraph is never split across a page. Keep them shorter
+%%   than the text height (see \textheight below) or you will get a warning.
+%% ---------------------------------------------------------------------------
+\documentclass[12pt,a4paper,twoside]{book}
+
+%% --- the two languages of this edition -------------------------------------
+%% Available ones you can drop in: english, french, spanish, german, italian,
+%% portuguese, polish, czech, latin... (any babel-supported language)
+\newcommand{\origlang}{french}
+\newcommand{\translang}{spanish}
+
+%% --- encoding & hyphenation -------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[\origlang,\translang]{babel}
+
+%% --- page geometry ---------------------------------------------------------
+%% "inner"/"outer" (rather than left/right) is what you want for a book: the
+%% wide margin falls on the binding side whichever page we are on.
+\usepackage[inner=30mm,outer=22mm,top=25mm,bottom=25mm]{geometry}
+
+%% --- typography ------------------------------------------------------------
+\usepackage{lmodern}
+\usepackage{microtype}
+
+%% --- two columns -----------------------------------------------------------
+\usepackage{paracol}
+
+\columnratio{0.5,0.5}
+\setlength{\columnsep}{9mm}
+\setlength{\columnseprule}{0.3pt}   % hairline between the two texts
+\setlength{\parindent}{1em}         % indent paragraphs, no extra space
+\setlength{\parskip}{0pt}
+
+%% --- running heads ---------------------------------------------------------
+%% NB: in fancyhdr, L/R = physical side of the page, O/E = odd/even page.
+%% The outer edge of a recto page is on the RIGHT and of a verso page on the
+%% LEFT, so these have to be [RO] and [LE] - not [LO]/[RE], which would put the
+%% heads on the binding edge.
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}   % fancyhdr needs room for \small\itshape
+\fancyhf{}
+\fancyhead[RO]{\small\itshape Le réverbère du numéro douze}
+\fancyhead[LE]{\small\itshape El farol del número doce}
+\fancyfoot[LE,RO]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+%% --- a heading that behaves inside a column --------------------------------
+%% (\section would try to start a new float/page, so we do it by hand)
+\newcommand{\heading}[1]{%
+  \par{\large\bfseries #1\par}\nobreak\vspace{0.4\baselineskip}}
+
+%% =========================== THE ALIGNMENT ENGINE ==========================
+\newsavebox{\pairA}
+\newsavebox{\pairB}
+\newlength{\pairht}
+\newlength{\pairgap}
+
+%% Space left between two paragraphs.  Because \nointerlineskip is used below,
+%% this (and not \baselineskip) is what separates one paragraph from the next.
+%% ~0.35\baselineskip reproduces the usual book spacing.  It can only be
+%% computed once \baselineskip exists, hence \AtBeginDocument.
+\AtBeginDocument{\setlength{\pairgap}{0.35\baselineskip}}
+
+%% Put one measured paragraph into the current column, stretched to \pairht so
+%% that it occupies exactly the same vertical space in both columns.
+\newcommand{\pairplace}[1]{%
+  \par\nointerlineskip
+  \noindent\vbox to\pairht{\unvbox#1\vfil}\par
+  \nointerlineskip\vskip\pairgap\nointerlineskip
+}
+
+%% --- THE ONE COMMAND YOU NEED ---------------------------------------------
+%% Original first, translation second. Each side gets its own language.
+\newcommand{\pair}[2]{%
+  \par
+  \setbox\pairA=\vtop{\hsize=\linewidth\selectlanguage{\origlang}#1\relax}%
+  \setbox\pairB=\vtop{\hsize=\linewidth\selectlanguage{\translang}#2\relax}%
+  %% the slot is as tall as the taller of the two paragraphs
+  \pairht=\ht\pairA \advance\pairht by \dp\pairA
+  \dimen0=\ht\pairB \advance\dimen0 by \dp\pairB
+  \ifdim\dimen0>\pairht \pairht=\dimen0 \fi
+  \ifdim\pairht>\textheight
+    \PackageWarning{bilingual}{%
+      A paragraph is \the\pairht\space tall but \textheight\space is the page
+      text height. It cannot be split, so it will overflow the page. Split it
+      into two \pair commands.}%
+  \fi
+  \pairplace{\pairA}%
+  \switchcolumn
+  \pairplace{\pairB}%
+  \switchcolumn}
+
+\begin{document}
+
+\begin{paracol}{2}
+
+\pair
+  {\heading{Chapitre premier}}
+  {\heading{Capítulo primero}}
+
+%% ============================ SAMPLE TEXT ==================================
+%% 10 placeholder paragraphs of original prose, written to be roughly the same
+%% length in both languages.  Delete them and put your own text in their place.
+%% They run over onto further pages on purpose: check that each page starts the
+%% same paragraph at the same height in both columns.
+
+\pair
+  {\noindent Dans une ville que les géographes avaient oubliée, un vieux
+   réverbère s'était mis à clignoter trois soirs de suite. Personne n'osa
+   l'éteindre, car on disait qu'il guidait encore un marinier perdu. À cette
+   époque, les capitaines ne réclamaient plus de fanal au port : ils y
+   arrivaient en comptant les tours de la ville. Mais depuis que le réverbère
+   clignotait, les enfants du quartier s'étaient mis à compter les éclats
+   eux-mêmes, et ils prétendaient que le nombre variait selon l'humeur de la mer.}
+  {\noindent En una ciudad que los geógrafos habían olvidado, un viejo farol
+   había empezado a parpadear tres noches seguidas. Nadie se atrevió a
+   apagarlo, porque se decía que todavía guiaba a un marinero perdido. En
+   aquel tiempo los capitanes ya no pedían un faro en el puerto: llegaban
+   guiándose por las torres de la ciudad. Pero desde que el farol parpadeaba,
+   los niños del barrio se habían puesto a contar los destellos ellos mismos,
+   y decían que el número variaba según el humor del mar.}
+
+\pair
+  {Le garçon qui habitait au numéro douze passa devant la boutique fermée et
+   frappa trois coups, comme on frappe à une porte que l'on connaît. Il n'y
+   avait personne derrière, mais la boutique du réverbère ne fermait jamais
+   tout à fait : la vendeuse laissait la clé de la cave sur le rebord de la
+   fenêtre, par habitude, comme on laisse une lampe allumée pour celui qui
+   rentre tard.}
+  {El niño que vivía en el número doce pasó por delante de la tienda cerrada
+   y golpeó tres veces, como se golpea a una puerta que se conoce. No había
+   nadie detrás, pero la tienda del farol no cerraba nunca del todo: la
+   dependienta dejaba la llave del sótano en el alféizar de la ventana, por
+   costumbre, como se deja una lámpara encendida para quien llega tarde.}
+
+\pair
+  {Il attendit longtemps, la pluie fine sur les épaules, et finit par
+   s'asseoir sur le pavé, les genoux serrés contre la poitrine. Le réverbère
+   clignotait par-dessus les toits, régulier comme une pendule, et chaque
+   éclat posait une petite lumière bleue sur les tuiles, une lumière qui
+   s'éteignait avant d'avoir fini de briller. Il se demanda combien de fois
+   il faudrait qu'il clignote pour qu'un bateau se décide à rentrer.}
+  {Esperó mucho tiempo, con la llovizna fina sobre los hombros, y acabó
+   sentándose en el adoquín, con las rodillas apretadas contra el pecho. El
+   farol parpadeaba por encima de los tejados, regular como un reloj, y cada
+   destello ponía una pequeña luz azul sobre las tejas, una luz que se
+   apagaba antes de haber terminado de brillar. Se preguntó cuántas veces
+   tendría que parpadear para que un barco se decidiera a volver.}
+
+\pair
+  {La vendeuse parut enfin, tenant un chiffon dans une main et la clé de la
+   cave dans l'autre. Elle le regarda longtemps sans rien dire, comme on mesure
+   une chose que l'on n'a pas l'habitude de voir. Puis elle demanda s'il
+   savait monter six cent marches. Il répondit qu'il était capable d'en monter
+   mille, et qu'il l'avait déjà fait le jour où il avait perdu son
+   laissez-passer sous un banc. Elle ne rit pas, mais elle cessa de regarder
+   la pluie.}
+  {Por fin apareció la dependienta, con un trapo en una mano y la llave del
+   sótano en la otra. Lo miró mucho rato sin decir nada, como se mide una cosa
+   que no se está acostumbrado a ver. Luego preguntó si sabía subir seiscientos
+   peldaños. Él respondió que era capaz de subir mil, y que ya lo había hecho
+   el día en que perdió su pase de navegación debajo de un banco. Ella no
+   rio, pero dejó de mirar la lluvia.}
+
+\pair
+  {« Il faut que quelqu'un monte là-haut, dit-elle enfin. Le réverbère doit
+   briller cette nuit, sinon le marinier ne rentrera pas. » Elle expliqua
+   qu'un réverbère qui cesse de briller n'éteint pas seulement une lumière :
+   il retire aux bateaux la ligne qu'ils suivent depuis toujours. Le garçon
+   demanda alors si le marinier existait encore. Elle dit qu'elle n'en était
+   pas sûre, et que c'était précisément pour cela qu'il ne fallait pas laisser
+   la lumière mourir.}
+  {«Es preciso que alguien suba ahí arriba —dijo por fin—. El farol tiene que
+   brillar esta noche, o el marinero no volverá.» Explicó que un farol que
+   deja de brillar no apaga solamente una luz: le quita a los barcos la línea
+   que siguen desde siempre. El niño preguntó entonces si el marinero existía
+   todavía. Ella dijo que no estaba segura, y que precisamente por eso no
+   había que dejar morir la luz.}
+
+\pair
+  {Le garçon ne demanda pas qui était le marinier. Il prit simplement la
+   clé, et monta les six cent marches sans les compter, parce que les nombres
+   lui paraissaient alors une invention des adultes. Il monta, et la ville
+   changea de forme à mesure qu'il montait : d'abord les ruelles, puis les
+   toits, puis les cheminées, puis la mer, immense et plate, qui n'avait plus
+   l'air d'une chose que l'on pût traverser.}
+  {El niño no preguntó quién era el marinero. Tomó simplemente la llave y
+   subió los seiscientos peldaños sin contarlos, porque los números le
+   parecían entonces una invención de los adultos. Subió, y la ciudad cambió
+   de forma a medida que ascendía: primero las callejuelas, luego los tejados,
+   luego las chimeneas, y por fin el mar, inmenso y llano, que ya no tenía el
+   aspecto de una cosa que se pudiera atravesar.}
+
+\pair
+  {En haut, la ville s'étendait, mince et grise, et l'on distinguait à peine
+   la mer. Le réverbère attendait, noir et silencieux, comme une bouche qui
+   aurait oublié ses paroles. Sa lanterne était fendue, son cuivre verdi, et
+   les pigeons du clocher s'étaient rassemblés sur la galerie comme s'ils
+   savaient ce qui allait se passer. Il y avait de la poussière sur la marche
+   supérieure, et personne n'avait nettoyé la place depuis des années.}
+  {Arriba, la ciudad se extendía, delgada y gris, y apenas se distinguía el
+   mar. El farol esperaba, negro y silencioso, como una boca que hubiera
+   olvidado sus palabras. Su linterna estaba rajada, el cobre se había puesto
+   verde, y las palomas de la campana se habían juntado en la galería como si
+   supieran lo que iba a pasar. Había polvo en el peldaño de arriba, y nadie
+   había limpiado aquel sitio en años.}
+
+\pair
+  {Il monta encore quatre marches et trouva, dans la loge de fer, une boîte de
+   lampes de rechange et un carnet couvert de toile cirée. Le carnet
+   appartenait à l'homme qui avait construit le réverbère, cinquante ans plus
+   tôt. Il l'ouvrit à la dernière page et trouva une phrase écrite d'une main
+   d'enfant : « N'oublie pas de regarder en haut. » Au-dessous, d'une autre
+   main, une réponse : « Je n'oublie jamais. »}
+  {Subió otros cuatro peldaños y encontró, en la caseta de hierro, una caja de
+   lámparas de repuesto y un cuaderno con tapas de hule. El cuaderno había
+   sido del hombre que construyó el farol, cincuenta años antes. Lo abrió por
+   la última página y encontró una frase escrita con letra de niño: «No
+   olvides de mirar hacia arriba.» Debajo, con otra letra, una respuesta:
+   «No lo olvido nunca.»}
+
+\pair
+  {Il alluma la lampe avec la dernière allumette et s'assit sur la galerie. La
+   lumière s'étala sur les toits, sur les cheminées, sur la pointe des mâts,
+   et la mer cessa d'être une chose sombre. Le réverbère, qui n'avait pas
+   servi depuis cinquante ans, se remit à clignoter comme s'il n'avait jamais
+   cessé. En bas, la ville reprit son travail : on entendit les volets, les
+   pas, une porte, puis une autre porte.}
+  {Encendió la lámpara con la última cerilla y se sentó en la galería. La luz
+   se derramó sobre los tejados, sobre las chimeneas, sobre las puntas de los
+   mástiles, y el mar dejó de ser una cosa oscura. El farol, que no servía
+   desde hacía cincuenta años, empezó otra vez a parpadear como si nunca
+   hubiera parado. Abajo, la ciudad retomó su trabajo: se oyeron las
+   contraventanas, los pasos, una puerta y luego otra puerta.}
+
+\pair
+  {Le marinier rentra à minuit. Il leva les yeux vers la fenêtre de la tour et
+   dit merci à voix basse, comme on remercie une ville qui ne demande rien.
+   Le garçon, resté sur la galerie, entendit le bateau se ranger contre le
+   quai, entendit une corde, entendit une voix qui fredonnait. Il dormit là
+   jusqu'au matin, et se réveilla avec la lumière du réverbère qui
+   s'éteignait.}
+  {El marinero volvió a medianoche. Levantó los ojos hacia la ventana de la
+   torre y dio las gracias en voz baja, como se agradece a una ciudad que no
+   pide nada. El niño, que se había quedado en la galería, oyó el barco
+   atracar en el muelle, oyó una cuerda, oyó una voz que tarareaba. Durmió
+   allí hasta la mañana y se despertó con la luz del farol apagándose.}
+
+%% End of the text. \end{paracol} takes care of the last column.
+\end{paracol}
+
+\end{document}

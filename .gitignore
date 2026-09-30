@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Download cache
+content/.source.html
+
+# Generated book files
+le-petit-prince.tex
+le-petit-prince.pdf
+bilingual-template.pdf
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
