@@ -104,7 +104,7 @@ export function conjugationTables(lemma: string, verbs: Verbs, reflexive: boolea
       tenses: [{ key: "imperatif:imperatif-présent", name: "présent", rows: imp }],
     },
     {
-      mood: "Infinitif & participes",
+      mood: "Participes",
       tenses: [
         {
           key: "nonfinite",

@@ -22,7 +22,10 @@ export function Sidebar({ toc, current, open, onClose }: Props) {
     <>
       <nav className={"sidebar" + (open ? " open" : "")} aria-label="Table des matières" aria-hidden={!open}>
         <div className="sidebar-head">
-          <span>Table des matières</span>
+          <span>
+            <span className="book">Le Petit Prince</span>
+            Table des matières
+          </span>
           <button className="icon" onClick={onClose} aria-label="Collapse" title="Collapse">
             «
           </button>
@@ -34,7 +37,7 @@ export function Sidebar({ toc, current, open, onClose }: Props) {
                 href={`#/${e.id}`}
                 className={e.id === current ? "current" : undefined}
                 tabIndex={open ? 0 : -1}
-                onClick={() => window.innerWidth <= 900 && onClose()}
+                onClick={() => window.matchMedia("(max-width: 900px)").matches && onClose()}
               >
                 {niceTitle(e.fr)}
               </a>

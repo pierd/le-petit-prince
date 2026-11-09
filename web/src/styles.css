@@ -37,8 +37,13 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--serif);
@@ -66,26 +71,55 @@ button {
   border-bottom: 1px solid var(--line);
   font-family: var(--sans);
   font-size: 0.9rem;
+  padding-left: max(0.5rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
 }
 
-.topbar .book {
+.chapter-nav {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.current-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--serif);
-  font-style: italic;
   font-size: 1.05rem;
 }
 
 .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
   border: 0;
   background: none;
   cursor: pointer;
   font-size: 1.15rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0 0.5rem;
   border-radius: 6px;
   line-height: 1;
+  color: inherit;
+  text-decoration: none;
 }
-.icon:hover {
-  background: var(--line);
+.chapter-nav .icon {
+  font-size: 1.6rem;
+  padding-bottom: 0.15rem;
+}
+.icon.disabled {
+  opacity: 0.25;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .icon:hover {
+    background: var(--line);
+  }
 }
 
 .app {
@@ -132,13 +166,23 @@ article {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 3rem;
-  padding: 0 0.5rem 0 1rem;
+  min-height: 3rem;
+  padding: 0.5rem 0.5rem 0.5rem max(1rem, env(safe-area-inset-left));
   border-bottom: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+.sidebar-head .book {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .sidebar ol {
@@ -148,7 +192,7 @@ article {
 }
 .sidebar a {
   display: block;
-  padding: 0.35rem 1rem;
+  padding: 0.45rem 1rem 0.45rem max(1rem, env(safe-area-inset-left));
   color: inherit;
   text-decoration: none;
   border-left: 3px solid transparent;
@@ -232,8 +276,10 @@ h1 .es {
   border-radius: 3px;
   transition: background-color 0.08s;
 }
-.w:hover {
-  background: var(--line);
+@media (hover: hover) {
+  .w:hover {
+    background: var(--line);
+  }
 }
 .w.hl {
   background: var(--hl);
@@ -261,6 +307,7 @@ figure img {
   font-size: 0.9rem;
 }
 .pager a {
+  padding: 0.5rem 0;
   color: var(--accent);
   text-decoration: none;
 }
@@ -332,10 +379,11 @@ figure img {
 .popup {
   position: absolute;
   z-index: 50;
+  display: flex;
+  flex-direction: column;
   width: min(24rem, calc(100vw - 16px));
   max-height: min(75vh, 40rem);
-  overflow-y: auto;
-  padding: 0.9rem 1rem 1rem;
+  overflow: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -346,6 +394,21 @@ figure img {
 }
 .popup.wide {
   width: min(40rem, calc(100vw - 16px));
+}
+.popup-head {
+  position: relative;
+  flex: none;
+  padding: 0.9rem 1rem 0.3rem;
+}
+.popup-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1rem 1rem;
+}
+.grip {
+  display: none;
 }
 .popup .close {
   position: absolute;
@@ -371,7 +434,7 @@ figure img {
   color: var(--muted);
 }
 .popup .kind {
-  margin: 0.15rem 0 0.6rem;
+  margin: 0.15rem 0 0.3rem;
   color: var(--accent);
   font-size: 0.82rem;
 }
@@ -416,12 +479,35 @@ figure img {
   color: var(--accent);
   font-weight: 600;
 }
-.conj h4 {
-  margin: 0.8rem 0 0.3rem;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.moods {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.5rem -1rem 0.4rem;
+  padding: 0 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.moods::-webkit-scrollbar {
+  display: none;
+}
+.moods button {
+  flex: none;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
   color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.moods button.has-current {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.moods button.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
 }
 .conj-grid {
   display: grid;
@@ -461,16 +547,65 @@ figure img {
   border-radius: 0 4px 4px 0;
 }
 
+@media (max-width: 700px) {
+  main {
+    padding: 1.25rem 1rem 3rem;
+  }
+  h1.pair-title {
+    font-size: 1.4rem;
+    margin-bottom: 1.25rem;
+  }
+  .single p,
+  .pair p.fr {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .conj-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phones: the popup is a bottom sheet (SHEET_QUERY in WordPopup.tsx). */
 @media (max-width: 600px) {
   .popup,
   .popup.wide {
     position: fixed;
-    left: 0 !important;
+    left: 0;
     right: 0;
-    top: auto !important;
     bottom: 0;
     width: 100%;
-    max-height: 70vh;
+    max-height: 60vh;
+    max-height: 60dvh;
+    border-width: 1px 0 0;
     border-radius: 14px 14px 0 0;
+    box-shadow: 0 -6px 30px rgb(0 0 0 / 0.18);
+    animation: sheet-up 0.18s ease-out;
+    transition: transform 0.15s ease-out;
+  }
+  .popup-head {
+    padding-top: 0.4rem;
+    touch-action: none;
+  }
+  .popup-body {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  .grip {
+    display: block;
+    width: 2.5rem;
+    height: 4px;
+    margin: 0 auto 0.5rem;
+    border-radius: 2px;
+    background: var(--line);
+  }
+  .popup .close {
+    top: 0.6rem;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
   }
 }

@@ -3,6 +3,7 @@ import { ParagraphView, type Hint, type Selection } from "./components/Paragraph
 import { niceTitle, Sidebar } from "./components/Sidebar";
 import { WordPopup } from "./components/WordPopup";
 import { imageUrl, loadChapter, loadToc, useData } from "./data";
+import { useMedia } from "./useMedia";
 import type { Paragraph } from "./types";
 
 function useStored(key: string, initial: boolean): [boolean, (v: boolean) => void] {
@@ -34,7 +35,12 @@ export function App() {
   const toc = useData(loadToc, []);
   const [hash, setHash] = useState(chapterFromHash);
   const [showSpanish, setShowSpanish] = useStored("lpp.showSpanish", false);
-  const [sidebarOpen, setSidebarOpen] = useStored("lpp.sidebar", window.innerWidth > 900);
+  const [sidebarStored, setSidebarOpen] = useStored("lpp.sidebar", true);
+  const narrow = useMedia("(max-width: 900px)");
+  // On a phone the contents are an overlay: start closed, whatever was stored.
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const sidebarOpen = narrow ? overlayOpen : sidebarStored;
+  const toggleSidebar = (v: boolean) => (narrow ? setOverlayOpen(v) : setSidebarOpen(v));
   const [sel, setSel] = useState<Selection | null>(null);
   const [hint, setHint] = useState<Hint | null>(null);
 
@@ -74,12 +80,20 @@ export function App() {
 
   return (
     <div className={"app" + (sidebarOpen ? " with-sidebar" : "") + (showSpanish ? " bilingual" : "")}>
-      <Sidebar toc={toc ?? []} current={id} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar toc={toc ?? []} current={id} open={sidebarOpen} onClose={() => toggleSidebar(false)} />
       <header className="topbar">
-        <button className="icon" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Table of contents" title="Table of contents">
+        <button className="icon" onClick={() => toggleSidebar(!sidebarOpen)} aria-label="Table of contents" title="Table of contents">
           ☰
         </button>
-        <span className="book">Le Petit Prince</span>
+        <nav className="chapter-nav" aria-label="Chapter">
+          <a className={"icon" + (prev ? "" : " disabled")} href={prev ? `#/${prev.id}` : undefined} aria-label="Previous chapter" title="Previous chapter (←)">
+            ‹
+          </a>
+          <span className="current-title">{chapter ? niceTitle(chapter.fr) : ""}</span>
+          <a className={"icon" + (next ? "" : " disabled")} href={next ? `#/${next.id}` : undefined} aria-label="Next chapter" title="Next chapter (→)">
+            ›
+          </a>
+        </nav>
         <label className="toggle" title="Show the Spanish translation (S)">
           <input type="checkbox" checked={showSpanish} onChange={(e) => setShowSpanish(e.target.checked)} />
           <span className="track" />

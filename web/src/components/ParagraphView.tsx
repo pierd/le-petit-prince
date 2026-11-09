@@ -2,6 +2,8 @@ import { memo, useState, type MouseEvent } from "react";
 import { linked, textOf, type Linked } from "../align";
 import type { Lang, Paragraph, Token } from "../types";
 
+const canHover = window.matchMedia("(hover: hover)");
+
 export interface Selection {
   pkey: string;
   lang: Lang;
@@ -60,7 +62,8 @@ export const ParagraphView = memo(function ParagraphView({ para, showSpanish, se
     if (!t) return;
     const l = linked(para, t.lang, t.index);
     setLit(l);
-    if (!showSpanish && t.lang === "fr" && l.es.size) {
+    // No tooltip on touch screens: a tap opens the popup, which shows the translation.
+    if (!showSpanish && t.lang === "fr" && l.es.size && canHover.matches) {
       onHint({ text: textOf(para.es, l.es), rect: t.el.getBoundingClientRect() });
     }
   };
