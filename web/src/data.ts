@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Chapter, Lexicon, TocEntry, Verbs } from "./types";
+import type { AudioIndex, Chapter, Lexicon, TocEntry, Verbs } from "./types";
 
 const base = `${import.meta.env.BASE_URL}data/`;
 const cache = new Map<string, Promise<unknown>>();
@@ -21,6 +21,8 @@ export const loadToc = () => load<TocEntry[]>("toc.json");
 export const loadChapter = (id: string) => load<Chapter>(`chapters/${id}.json`);
 export const loadVerbs = () => load<Verbs>("verbs.json");
 export const loadLexicon = () => load<Lexicon>("lexicon.json");
+/** Empty when the audio hasn't been generated (tools/audio.py). */
+export const loadAudio = () => load<AudioIndex>("audio.json").catch(() => ({}) as AudioIndex);
 
 /** The resolved value of a loader, or undefined while it is pending. */
 export function useData<T>(loader: () => Promise<T>, deps: unknown[]): T | undefined {
@@ -37,3 +39,4 @@ export function useData<T>(loader: () => Promise<T>, deps: unknown[]): T | undef
 }
 
 export const imageUrl = (name: string) => `${import.meta.env.BASE_URL}images/${name}`;
+export const audioUrl = (name: string) => `${import.meta.env.BASE_URL}audio/${name}`;

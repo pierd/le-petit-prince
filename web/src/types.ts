@@ -75,3 +75,13 @@ export type Verbs = Record<string, Verb>;
 export type Lexicon = Record<string, [string, number][]>;
 
 export type Lang = "fr" | "es";
+
+export interface ChapterAudio {
+  /** File name under public/audio/. */
+  src: string;
+  duration: number;
+  /** Paragraph key -> [token index, start time in seconds] of its French words. */
+  words: Record<string, [number, number][]>;
+}
+
+export type AudioIndex = Record<string, ChapterAudio>;

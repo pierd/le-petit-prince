@@ -11,6 +11,8 @@ interface Props {
   para: Paragraph;
   sel: Selection;
   onClose: () => void;
+  /** Start the audiobook at a French word; absent when there is no audio. */
+  onPlay?: (pkey: string, index: number) => void;
 }
 
 const CONJ_KEY = "lpp.showConjugation";
@@ -97,7 +99,7 @@ function Shell(props: { head: ReactNode; children?: ReactNode; wide?: boolean; s
   );
 }
 
-export function WordPopup({ para, sel, onClose }: Props) {
+export function WordPopup({ para, sel, onClose, onPlay }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const verbs = useData(loadVerbs, []);
   const lexicon = useData(loadLexicon, []);
@@ -187,6 +189,17 @@ export function WordPopup({ para, sel, onClose }: Props) {
             {lemmaLabel && lemmaLabel !== tok.t.toLowerCase() && <span className="lemma"> → {lemmaLabel}</span>}
           </div>
           <div className="kind">{d.kind}</div>
+          {onPlay && (
+            <button
+              className="listen"
+              onClick={() => {
+                onPlay(sel.pkey, sel.index);
+                onClose();
+              }}
+            >
+              ▶ Écouter d'ici
+            </button>
+          )}
         </>
       }
     >

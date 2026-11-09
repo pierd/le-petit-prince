@@ -23,6 +23,8 @@ interface Props {
   selected?: { lang: Lang; index: number };
   onSelect: (s: Selection) => void;
   onHint: (h: Hint | null) => void;
+  /** Index of the French word being read aloud, if it is in this paragraph. */
+  spoken?: number;
 }
 
 function target(e: MouseEvent): { lang: Lang; index: number; el: HTMLElement } | null {
@@ -31,7 +33,7 @@ function target(e: MouseEvent): { lang: Lang; index: number; el: HTMLElement } |
   return { lang: el.dataset.lang as Lang, index: Number(el.dataset.i), el };
 }
 
-function Tokens({ tokens, lang, lit, selected }: { tokens: Token[]; lang: Lang; lit?: Set<number>; selected?: number }) {
+function Tokens({ tokens, lang, lit, selected, spoken }: { tokens: Token[]; lang: Lang; lit?: Set<number>; selected?: number; spoken?: number }) {
   return (
     <>
       {tokens.map((t, i) =>
@@ -42,7 +44,7 @@ function Tokens({ tokens, lang, lit, selected }: { tokens: Token[]; lang: Lang; 
             <span
               data-i={i}
               data-lang={lang}
-              className={"w" + (lit?.has(i) ? " hl" : "") + (selected === i ? " sel" : "")}
+              className={"w" + (lit?.has(i) ? " hl" : "") + (selected === i ? " sel" : "") + (spoken === i ? " cur" : "")}
             >
               {t.t}
             </span>
@@ -54,7 +56,7 @@ function Tokens({ tokens, lang, lit, selected }: { tokens: Token[]; lang: Lang; 
   );
 }
 
-export const ParagraphView = memo(function ParagraphView({ para, showSpanish, selected, onSelect, onHint }: Props) {
+export const ParagraphView = memo(function ParagraphView({ para, showSpanish, selected, onSelect, onHint, spoken }: Props) {
   const [lit, setLit] = useState<Linked | null>(null);
 
   const over = (e: MouseEvent) => {
@@ -81,9 +83,15 @@ export const ParagraphView = memo(function ParagraphView({ para, showSpanish, se
 
   const sel = (lang: Lang) => (selected?.lang === lang ? selected.index : undefined);
   return (
-    <div className={showSpanish ? "pair" : "single"} onMouseOver={over} onMouseOut={out} onClick={click}>
+    <div
+      className={(showSpanish ? "pair" : "single") + (spoken !== undefined ? " speaking" : "")}
+      data-p={para.key}
+      onMouseOver={over}
+      onMouseOut={out}
+      onClick={click}
+    >
       <p lang="fr" className="fr">
-        <Tokens tokens={para.fr} lang="fr" lit={lit?.fr} selected={sel("fr")} />
+        <Tokens tokens={para.fr} lang="fr" lit={lit?.fr} selected={sel("fr")} spoken={spoken} />
       </p>
       {showSpanish && (
         <p lang="es" className="es">

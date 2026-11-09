@@ -70,6 +70,7 @@ height, and that the page count is a multiple of four.
 | `tools/makebook.py` | Validates keys and generates the complete LaTeX book |
 | `tools/check_alignment.py` | Verifies paragraph and plate coordinates in the PDF |
 | `tools/annotate.py` | Generates the interactive reader's data in `web/public/data/` |
+| `tools/audio.py` | Splits the audiobook into chapters and times every word |
 | `web/` | Interactive reader (Vite + React + TypeScript) |
 | `bilingual-template.tex` | Earlier small, reusable parallel-text example |
 
@@ -108,6 +109,23 @@ takes about 15 minutes, later runs reuse the alignments cached in
 `tools/.cache/`. The annotations are automatic and occasionally wrong.
 Notes for contractions, elisions, articles and pronouns are hand-written in
 `web/src/grammar/functionWords.ts`.
+
+### Audio
+
+The audiobook is split into one file per chapter and every French word is
+timed, so the reader can highlight the word being read and play from any
+word:
+
+```sh
+uv run tools/audio.py "Le Petit Prince audiobook in French (Full book)_1080p.mp4"
+```
+
+It needs ffmpeg and an Apple Silicon Mac: the audio is transcribed with
+Whisper (`mlx-whisper`, about 10 minutes, cached in `tools/.cache/`) and the
+transcript is aligned with the book's words. It writes
+`web/public/audio/<chapter>.m4a` and `web/public/data/audio.json`, both
+committed; the video itself is not. Run it again after `tools/annotate.py`,
+since the timings refer to its tokens.
 
 Develop and build:
 
