@@ -44,6 +44,8 @@ function cueAt(list: Cue[], t: number): Cue | undefined {
 export interface Player {
   ref: React.RefObject<HTMLAudioElement | null>;
   available: boolean;
+  /** The chapter's audio failed to load (offline and not saved). */
+  failed: boolean;
   playing: boolean;
   time: number;
   duration: number;
@@ -74,6 +76,7 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
     }
   });
   const [spoken, setSpoken] = useState<Spoken | null>(null);
+  const [failed, setFailed] = useState(false);
   const list = useMemo(() => cues(audio), [audio]);
   // Set when the source changes: where to start and whether to play.
   const pending = useRef<{ t: number; play: boolean } | null>(null);
@@ -91,6 +94,7 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
       setTime(0);
       return;
     }
+    setFailed(false);
     // Set by onEnded when moving on to the next chapter; otherwise start paused.
     pending.current ??= { t: 0, play: false };
     el.src = audioUrl(audio.src);
@@ -99,6 +103,17 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
     setSpoken(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId, audio]);
+
+  // Back online after a failed load: try the file again.
+  useEffect(() => {
+    if (!failed) return;
+    const retry = () => {
+      setFailed(false);
+      ref.current?.load();
+    };
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [failed]);
 
   useEffect(() => {
     if (ref.current) ref.current.playbackRate = rate;
@@ -142,6 +157,12 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
       el.currentTime = p.t;
       if (p.play) void el.play().catch(() => setPlaying(false));
     };
+    const onError = () => {
+      if (el.getAttribute("src")) {
+        setFailed(true);
+        setPlaying(false);
+      }
+    };
     const onEnd = () => {
       setPlaying(false);
       if (onEndedRef.current()) pending.current = { t: 0, play: true };
@@ -151,7 +172,9 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
     el.addEventListener("pause", onPause);
     el.addEventListener("loadedmetadata", onMeta);
     el.addEventListener("ended", onEnd);
+    el.addEventListener("error", onError);
     return () => {
+      el.removeEventListener("error", onError);
       el.removeEventListener("timeupdate", onTime);
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
@@ -202,6 +225,7 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
   return {
     ref,
     available: !!audio,
+    failed,
     playing,
     time,
     duration: audio?.duration ?? 0,

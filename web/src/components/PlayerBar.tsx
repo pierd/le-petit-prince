@@ -13,6 +13,17 @@ interface Props {
 
 export function PlayerBar({ player: p, follow, onFollow }: Props) {
   if (!p.available) return null;
+  if (p.failed) {
+    return (
+      <div className="player" role="region" aria-label="Audiobook">
+        <p className="player-msg">
+          {navigator.onLine
+            ? "L'audio de ce chapitre n'a pas pu être chargé."
+            : "Audio non disponible hors ligne. Téléchargez le livre depuis la table des matières."}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="player" role="region" aria-label="Audiobook">
       <button className="icon" onClick={() => p.skipParagraph(-1)} aria-label="Previous paragraph" title="Previous paragraph">

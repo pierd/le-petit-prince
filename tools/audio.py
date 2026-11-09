@@ -14,7 +14,8 @@ French tokens from web/public/data/chapters/.
 
 Writes:
     web/public/audio/<key>.m4a   one AAC file per chapter (mono, 48 kb/s)
-    web/public/data/audio.json   per chapter: audio file, duration, and the
+    web/public/data/audio.json   per chapter: audio file (with a content hash
+                                 so saved offline copies update), duration, and the
                                  start time of every French token, relative
                                  to the chapter file
 
@@ -28,6 +29,7 @@ narrator announcing the chapter.
 The transcript is cached in tools/.cache/transcript.json (transcribing takes
 a while); delete it to transcribe again.
 """
+import hashlib
 import json
 import os
 import re
@@ -216,7 +218,8 @@ def main():
         for (c, pkey, i, _), t in zip(book, times):
             if c == ch and pkey is not None:
                 paras.setdefault(pkey, {})[i] = round(t - start, 2)
-        result[ch] = {"src": name, "duration": round(end - start, 2),
+        digest = hashlib.sha256(open(os.path.join(AUDIO_OUT, name), "rb").read()).hexdigest()[:10]
+        result[ch] = {"src": f"{name}?v={digest}", "duration": round(end - start, 2),
                       "words": {p: [[i, t] for i, t in sorted(ts.items())] for p, ts in paras.items()}}
     with open(os.path.join(DATA, "audio.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, separators=(",", ":"))

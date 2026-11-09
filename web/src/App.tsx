@@ -182,6 +182,11 @@ export function App() {
               {next ? <a href={`#/${next.id}`}>{niceTitle(next.fr)} →</a> : <span />}
             </nav>
           </article>
+        ) : chapter === null ? (
+          <p className="loading">
+            Ce chapitre n'est pas disponible hors ligne. Reconnectez-vous, ou téléchargez le livre depuis la table des
+            matières.
+          </p>
         ) : (
           <p className="loading">Chargement…</p>
         )}

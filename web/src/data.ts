@@ -11,6 +11,9 @@ function load<T>(path: string): Promise<T> {
       fetch(base + path).then((r) => {
         if (!r.ok) throw new Error(`${path}: ${r.status}`);
         return r.json();
+      }).catch((e) => {
+        cache.delete(path); // offline now, maybe not later: let the next call retry
+        throw e;
       }),
     );
   }
@@ -18,7 +21,8 @@ function load<T>(path: string): Promise<T> {
 }
 
 export const loadToc = () => load<TocEntry[]>("toc.json");
-export const loadChapter = (id: string) => load<Chapter>(`chapters/${id}.json`);
+/** null when it can't be loaded (offline and not saved). */
+export const loadChapter = (id: string) => load<Chapter>(`chapters/${id}.json`).catch(() => null);
 export const loadVerbs = () => load<Verbs>("verbs.json");
 export const loadLexicon = () => load<Lexicon>("lexicon.json");
 /** Empty when the audio hasn't been generated (tools/audio.py). */

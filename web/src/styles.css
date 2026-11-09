@@ -749,3 +749,53 @@ figure img {
     padding-bottom: 9rem;
   }
 }
+
+/* --- offline --- */
+
+.offline {
+  margin: 0.5rem 0 1rem;
+  padding: 1rem 1rem 0 max(1rem, env(safe-area-inset-left));
+  border-top: 1px solid var(--line);
+}
+.offline h2 {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.offline p {
+  margin: 0.4rem 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.offline .chip {
+  display: block;
+  margin: 0.4rem 0;
+  text-align: left;
+}
+.offline .chip.save {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.link.small {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: normal;
+}
+.progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.player-msg {
+  margin: 0.4rem 0;
+  color: var(--muted);
+}

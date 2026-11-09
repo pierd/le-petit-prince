@@ -127,6 +127,16 @@ transcript is aligned with the book's words. It writes
 committed; the video itself is not. Run it again after `tools/annotate.py`,
 since the timings refer to its tokens.
 
+### Offline
+
+The site is an installable PWA (`vite-plugin-pwa`, service worker in
+`web/src/sw.ts`). Only the app shell is cached automatically; chapters you
+open are kept as you read. "Télécharger pour hors ligne" in the table of
+contents saves everything listed in `offline.json` (text, illustrations and
+audio, about 43 MB; generated at build time by
+`web/scripts/offline-manifest.mjs`). Audio URLs carry a content hash, so
+saved copies are replaced only when the audio changes.
+
 Develop and build:
 
 ```sh

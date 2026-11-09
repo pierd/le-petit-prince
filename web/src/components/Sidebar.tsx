@@ -1,4 +1,5 @@
 import type { TocEntry } from "../types";
+import { OfflinePanel } from "./OfflinePanel";
 
 /** "CHAPITRE XII" -> "Chapitre XII", "DEDICACE" -> "Dédicace". */
 export function niceTitle(title: string): string {
@@ -44,6 +45,7 @@ export function Sidebar({ toc, current, open, onClose }: Props) {
             </li>
           ))}
         </ol>
+        <OfflinePanel />
       </nav>
       {open && <div className="scrim" onClick={onClose} />}
     </>
