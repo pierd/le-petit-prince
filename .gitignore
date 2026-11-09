@@ -19,3 +19,9 @@ bilingual-template.pdf
 *.out
 *.synctex.gz
 *.toc
+
+# Annotation caches (tools/annotate.py)
+tools/.cache/
+
+# Audiobook source video (too large for git)
+*.mp4

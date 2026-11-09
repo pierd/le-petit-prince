@@ -69,6 +69,8 @@ height, and that the page count is a multiple of four.
 | `tools/fetch_source.py` | Fetches and parses the supplied HTML source |
 | `tools/makebook.py` | Validates keys and generates the complete LaTeX book |
 | `tools/check_alignment.py` | Verifies paragraph and plate coordinates in the PDF |
+| `tools/annotate.py` | Generates the interactive reader's data in `web/public/data/` |
+| `web/` | Interactive reader (Vite + React + TypeScript) |
 | `bilingual-template.tex` | Earlier small, reusable parallel-text example |
 
 ## Editing
@@ -84,6 +86,41 @@ Cuando tenía seis años...
 
 Run `./build-book.sh` after edits. Keys may be split across files, but every
 French key must have exactly one Spanish counterpart.
+
+## Interactive reader
+
+`web/` is a Vite + React + TypeScript site that shows one chapter at a time,
+French by default, with an optional Spanish column. Hovering a word highlights
+its counterpart in the Spanish (or shows it as a tooltip when the Spanish is
+hidden). Clicking a word explains its form (tense, person, contraction,
+elision, ...) and, for verbs, shows the full conjugation.
+
+The site reads pre-computed JSON from `web/public/data/`, which is committed,
+so deploying needs only Node. Regenerate it after editing the text:
+
+```sh
+uv run tools/annotate.py
+```
+
+This uses spaCy (French and Spanish models), verbecc for conjugations and
+simalign (mBERT) for word alignment; the first run downloads the models and
+takes about 15 minutes, later runs reuse the alignments cached in
+`tools/.cache/`. The annotations are automatic and occasionally wrong.
+Notes for contractions, elisions, articles and pronouns are hand-written in
+`web/src/grammar/functionWords.ts`.
+
+Develop and build:
+
+```sh
+cd web
+npm install
+npm run dev      # http://localhost:5173/le-petit-prince/
+npm run build    # -> web/dist
+```
+
+Pushing to `main` builds and deploys the site with
+`.github/workflows/pages.yml` (repository Settings → Pages → Source:
+GitHub Actions).
 
 ## Alignment
 
