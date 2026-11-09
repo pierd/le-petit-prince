@@ -134,7 +134,8 @@ the 43 MB download is a button that shows its size first. Details are in
   the cache (`savedBlob()`). Desktop WebKit in Playwright does route media
   through the service worker, so a passing offline test there proved
   nothing for iOS; that bug reached the user. To imitate iOS, test with
-  `service_workers="block"`.
+  `service_workers="block"`. The blob fix was confirmed by the user on an
+  iPhone, as an installed app in flight mode.
 - **Audio timings refer to token indices.** Changing tokenization in
   `annotate.py` without re-running `audio.py` silently misplaces the
   highlighted word.
@@ -154,6 +155,8 @@ There are no unit tests. Changes were verified like this:
     decode AAC.
   - For offline, create the context with `service_workers="allow"`, wait for
     `navigator.serviceWorker.ready`, reload, then `ctx.set_offline(True)`.
+    For audio, also run with `service_workers="block"`, which is how iOS
+    behaves for media.
 - **Annotation quality:** load the chapter JSON and print token, POS, lemma,
   first reading, compound and aligned Spanish for a passage. Also count a
   known phrase across the book, e.g. how many *grande(s) personne(s)* map to
