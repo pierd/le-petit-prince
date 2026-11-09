@@ -12,7 +12,7 @@
 # ///
 """Annotate the parallel text for the interactive reader in web/.
 
-    uv run tools/annotate.py
+    uv run --python 3.12 tools/annotate.py
 
 Reads content/fr.txt and content/es-part-*.txt (via makebook's parsers) and
 writes, under web/public/data/:

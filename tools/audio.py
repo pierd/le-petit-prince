@@ -6,7 +6,7 @@
 # ///
 """Split the audiobook into chapters and time every French word.
 
-    uv run tools/audio.py [VIDEO]
+    uv run --python 3.12 tools/audio.py [VIDEO]
 
 VIDEO defaults to the one .mp4 in the repository root. Needs ffmpeg and an
 Apple Silicon Mac (mlx-whisper). Run tools/annotate.py first: this reads the
@@ -151,7 +151,7 @@ def interpolate(times):
 def main():
     video = sys.argv[1] if len(sys.argv) > 1 else (glob(os.path.join(ROOT, "*.mp4")) or [None])[0]
     if not video:
-        sys.exit("usage: uv run tools/audio.py VIDEO")
+        sys.exit("usage: uv run --python 3.12 tools/audio.py VIDEO")
     os.makedirs(CACHE, exist_ok=True)
     wav = os.path.join(CACHE, "audio16k.wav")
     if not os.path.exists(wav):
