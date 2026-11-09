@@ -129,6 +129,12 @@ the 43 MB download is a button that shows its size first. Details are in
 - **The video** (`*.mp4`, 324 MB) is ignored and must never be committed.
 - **The service worker** only runs in a build (`npm run build && npx vite
   preview`), not under `npm run dev`.
+- **iOS plays `<audio>` outside the service worker.** Saved audio only works
+  in flight mode because the player plays it from a `blob:` URL read from
+  the cache (`savedBlob()`). Desktop WebKit in Playwright does route media
+  through the service worker, so a passing offline test there proved
+  nothing for iOS; that bug reached the user. To imitate iOS, test with
+  `service_workers="block"`.
 - **Audio timings refer to token indices.** Changing tokenization in
   `annotate.py` without re-running `audio.py` silently misplaces the
   highlighted word.

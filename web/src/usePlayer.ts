@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { audioUrl } from "./data";
+import { OFFLINE_SAVED_EVENT, savedBlob } from "./offline";
 import type { ChapterAudio } from "./types";
 
 export interface Spoken {
@@ -83,26 +84,63 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
 
-  // New chapter: load its file, keep playing if we were.
+  const audioRef = useRef(audio);
+  audioRef.current = audio;
+  const rateRef = useRef(rate);
+  rateRef.current = rate;
+  const objectUrl = useRef<string | null>(null);
+
+  /**
+   * Point the element at the chapter's audio: the saved copy as a blob: URL
+   * when there is one, else the network URL. iOS loads <audio> outside the
+   * service worker, so a blob is the only way saved audio plays offline there.
+   * With keep, only switch to a saved copy, at the same position and
+   * play state; returns whether the source changed.
+   */
+  const resolveSource = useCallback(async (keep: boolean): Promise<boolean> => {
+    const el = ref.current;
+    const a = audioRef.current;
+    if (!el || !a) return false;
+    if (keep && objectUrl.current && el.src === objectUrl.current) return false;
+    const url = audioUrl(a.src);
+    const blob = await savedBlob(url, "audio/mp4");
+    if (audioRef.current !== a || (keep && !blob)) return false;
+    if (keep) pending.current = { t: el.currentTime, play: !el.paused };
+    const old = objectUrl.current;
+    objectUrl.current = blob ? URL.createObjectURL(blob) : null;
+    el.src = objectUrl.current ?? url;
+    el.playbackRate = rateRef.current;
+    if (old) URL.revokeObjectURL(old);
+    setFailed(false);
+    return true;
+  }, []);
+
+  // New chapter: load its file; onEnded may have asked to keep playing.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setSpoken(null);
+    setTime(0);
+    setFailed(false);
     if (!audio) {
       el.removeAttribute("src");
       el.load();
-      setSpoken(null);
-      setTime(0);
       return;
     }
-    setFailed(false);
-    // Set by onEnded when moving on to the next chapter; otherwise start paused.
     pending.current ??= { t: 0, play: false };
-    el.src = audioUrl(audio.src);
-    el.playbackRate = rate;
-    setTime(0);
-    setSpoken(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapterId, audio]);
+    void resolveSource(false);
+  }, [chapterId, audio, resolveSource]);
+
+  // The book was just saved, or the connection dropped: move to the saved copy.
+  useEffect(() => {
+    const toSaved = () => void resolveSource(true);
+    window.addEventListener(OFFLINE_SAVED_EVENT, toSaved);
+    window.addEventListener("offline", toSaved);
+    return () => {
+      window.removeEventListener(OFFLINE_SAVED_EVENT, toSaved);
+      window.removeEventListener("offline", toSaved);
+    };
+  }, [resolveSource]);
 
   // Back online after a failed load: try the file again.
   useEffect(() => {
@@ -158,10 +196,10 @@ export function usePlayer(chapterId: string | undefined, audio: ChapterAudio | u
       if (p.play) void el.play().catch(() => setPlaying(false));
     };
     const onError = () => {
-      if (el.getAttribute("src")) {
-        setFailed(true);
-        setPlaying(false);
-      }
+      if (!el.getAttribute("src")) return;
+      setPlaying(false);
+      // A network load failed: fall back to the saved copy if there is one.
+      void resolveSource(true).then((switched) => switched || setFailed(true));
     };
     const onEnd = () => {
       setPlaying(false);

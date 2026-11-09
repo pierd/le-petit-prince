@@ -148,7 +148,17 @@ share one cache, `lpp-offline-v1` (`src/offlineCache.ts`):
 
 The audio element asks for byte ranges. A saved file is answered with a 206
 response built by `workbox-range-requests`, without which Safari won't play
-cached audio. The download is opt-in because it is 43 MB. It asks for
+cached audio.
+
+On iOS, though, `<audio>` loads through the system media stack, which skips
+the service worker. So `usePlayer` doesn't rely on it: when a chapter's
+audio is saved, the player reads it from the cache itself
+(`savedBlob()` in `offline.ts`) and plays it from a `blob:` URL. It switches
+to the saved copy:
+- when a chapter opens
+- when a download finishes (the `lpp:offline-saved` event)
+- when the connection drops
+- when a network load fails The download is opt-in because it is 43 MB. It asks for
 persistent storage, and on completion drops cached audio whose `?v=` hash is
 no longer listed. On iOS a home-screen app has storage separate from Safari,
 so the download has to happen in the installed app.
