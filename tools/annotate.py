@@ -258,19 +258,33 @@ def analyse_verb(tok, vidx):
 # --- alignment ---------------------------------------------------------------
 
 class Aligner:
+    """simalign (mBERT) with a precision-first combination of its methods.
+
+    "inter" (links both directions agree on) is reliable but sparse; the
+    max-weight matching "mwmf" covers more words but, being one-to-one, it
+    can keep the French order across a Spanish inversion ("grande personne"
+    -> "persona mayor" as grande-persona). So inter links are kept and mwmf
+    only fills in words left unlinked on both sides.
+    """
+
     def __init__(self):
-        self.path = os.path.join(CACHE, "alignments.json")
+        self.path = os.path.join(CACHE, "alignments-v2.json")
         self.cache = json.load(open(self.path)) if os.path.exists(self.path) else {}
         self.model = None
 
     def align(self, fr, es):
+        """-> (sure links, fill-in links)."""
         key = json.dumps([fr, es], ensure_ascii=False)
         if key not in self.cache:
             if self.model is None:
                 from simalign import SentenceAligner
-                self.model = SentenceAligner(model="bert", token_type="bpe", matching_methods="m")
-            self.cache[key] = [list(p) for p in self.model.get_word_aligns(fr, es)["mwmf"]]
-        return [tuple(p) for p in self.cache[key]]
+                self.model = SentenceAligner(model="bert", token_type="bpe", matching_methods="ma")
+            r = self.model.get_word_aligns(fr, es)
+            self.cache[key] = {m: [list(p) for p in r[m]] for m in ("inter", "mwmf")}
+        r = self.cache[key]
+        sure = [tuple(p) for p in r["inter"]]
+        fr_done, es_done = {i for i, _ in sure}, {j for _, j in sure}
+        return sure, [(i, j) for i, j in r["mwmf"] if i not in fr_done and j not in es_done]
 
     def save(self):
         os.makedirs(CACHE, exist_ok=True)
@@ -282,15 +296,24 @@ def sent_spans(doc):
 
 
 def align_docs(aligner, fd, ed):
-    """Align two spaCy docs; long paragraphs sentence by sentence if they match."""
+    """Align two spaCy docs sentence by sentence when their sentences pair up.
+
+    mBERT aligns a sentence on its own noticeably better than inside a whole
+    paragraph. Fill-in links must join two content words or two function
+    words; across the divide they are mostly leftovers paired up ("j'ai vu"
+    / "vi a": vu-a).
+    """
+    def keep(i, j):
+        return (fd[i].pos_ in CONTENT) == (ed[j].pos_ in CONTENT)
+
+    def run(a, b, c, d):
+        sure, fill = aligner.align([t.text for t in fd[a:b]], [t.text for t in ed[c:d]])
+        return [(i + a, j + c) for i, j in sure] + [(i + a, j + c) for i, j in fill if keep(i + a, j + c)]
+
     fs, es = sent_spans(fd), sent_spans(ed)
-    if len(fd) > 160 and len(fs) == len(es):
-        pairs = []
-        for (a, b), (c, d) in zip(fs, es):
-            pairs += [(i + a, j + c) for i, j in
-                      aligner.align([t.text for t in fd[a:b]], [t.text for t in ed[c:d]])]
-        return pairs
-    return aligner.align([t.text for t in fd], [t.text for t in ed])
+    if len(fs) == len(es):
+        return [p for (a, b), (c, d) in zip(fs, es) for p in run(a, b, c, d)]
+    return run(0, len(fd), 0, len(ed))
 
 
 def fix_alignment(fd, ed, pairs):
@@ -310,11 +333,21 @@ def fix_alignment(fd, ed, pairs):
             links[i] |= links[k]
 
     for t in fd:
+        # auxiliary and participle translate together ("ai vu" / "vi")
+        if t.dep_.startswith("aux") and t.head.i > t.i:
+            borrow(t.head.i, t.i)
+            borrow(t.i, t.head.i)
+    for t in fd:
         # subject pronoun / auxiliary / reflexive -> the verb (Spanish drops or fuses it)
-        if t.pos_ in ("PRON", "AUX") and t.head.pos_ in ("VERB", "AUX") and (
+        if t.pos_ in ("PRON", "AUX") and (
                 t.dep_ in ("nsubj", "aux:tense", "aux:pass", "expl:subj", "expl:comp", "expl")
                 or t.lower_ in REFLEXIVE):
-            borrow(t.i, t.head.i)
+            verb = t.head
+            if verb.pos_ not in ("VERB", "AUX"):
+                # "il était petit": the subject hangs on "petit", the verb is its copula
+                verb = next((c for c in verb.children if c.dep_ == "cop"), None)
+            if verb is not None and verb.i != t.i:
+                borrow(t.i, verb.i)
         # "ne ... pas": both halves map to "no"
         if t.lower_ in ("ne", "n'"):
             for c in t.head.children:
@@ -368,8 +401,22 @@ def find_compounds(fd, info):
 
 # --- main --------------------------------------------------------------------
 
+def analyse(nlp, text):
+    """spaCy doc of text. All-caps text (the dedication) is analysed in lower
+    case, since spaCy tags capitals badly (IL as a verb, ÉTAIT as an adverb);
+    doc.user_data["orig"] keeps the original for display."""
+    letters = [c for c in text if c.isalpha()]
+    if letters and sum(c.isupper() for c in letters) > 0.8 * len(letters) and len(text.lower()) == len(text):
+        doc = nlp(text[0] + text[1:].lower())
+    else:
+        doc = nlp(text)
+    doc.user_data["orig"] = text
+    return doc
+
+
 def tok_json(t):
-    d = {"t": t.text}
+    orig = t.doc.user_data.get("orig", t.doc.text)
+    d = {"t": orig[t.idx:t.idx + len(t.text)]}
     if t.whitespace_:
         d["s"] = t.whitespace_
     return d
@@ -408,7 +455,7 @@ def main():
                 continue
             pkey, fr_text = b[1], normalize(b[2])
             es_text = normalize(es_paras[pkey])
-            fd, ed = merge_clitics(nlp_fr(fr_text)), nlp_es(es_text)
+            fd, ed = merge_clitics(analyse(nlp_fr, fr_text)), analyse(nlp_es, es_text)
             links = fix_alignment(fd, ed, align_docs(aligner, fd, ed))
 
             info = {}
